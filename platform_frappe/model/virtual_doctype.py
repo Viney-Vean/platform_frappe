@@ -20,6 +20,7 @@ class VirtualDoctype(Document):
                 frappe.ui.form.on('Customer Relative', {
                     after_save: function (frm) {
                         frm.reload_doc();
+                        frm.refresh()
                     }
                 });
     """
@@ -58,6 +59,18 @@ class VirtualDoctype(Document):
 
         return data
 
+    def get_virtual_table_fieldnames(self):
+        """
+            Don't call to protected member directly.
+            Ex: self.get_new_parent_doc().meta._table_fields
+        """
+        data = set()
+
+        for d in self.meta.get_table_fields():
+            data.update({d.fieldname})
+
+        return data
+
     def get_table_field_dict(self):
         data = {}
 
@@ -68,6 +81,14 @@ class VirtualDoctype(Document):
 
     def prepare_data_from_db(self):
         data = frappe.get_doc(self.parent_doctype, self.name).as_dict()
+        table_fieldnames = self.get_table_fieldnames()
+        form_table_fieldnames = self.get_virtual_table_fieldnames()
+        diff_table_fieldnames = table_fieldnames - form_table_fieldnames
+
+        for field_name in diff_table_fieldnames:
+            if hasattr(data, field_name):
+                del data[field_name]
+
         self.update(data)
 
     def prepare_data_for_db_insert(self, *args, **kwargs):
@@ -78,7 +99,7 @@ class VirtualDoctype(Document):
             if hasattr(parent_doctype, field):
                 setattr(parent_doctype, field, value)
 
-        for children_field in self.get_table_fieldnames():
+        for children_field in self.get_virtual_table_fieldnames():
             children_data = getattr(self, children_field)
 
             for data_item in children_data:
@@ -95,7 +116,7 @@ class VirtualDoctype(Document):
             if hasattr(parent_doctype, field):
                 setattr(parent_doctype, field, value)
 
-        for children_field in self.get_table_fieldnames():
+        for children_field in self.get_virtual_table_fieldnames():
             children_data = getattr(self, children_field)
             keep_ids = []
 
@@ -115,7 +136,6 @@ class VirtualDoctype(Document):
                 frappe.delete_doc(del_child_doctype, del_item.get("name"))
 
         frappe.db.set_value(self.parent_doctype, self.name, data)
-        frappe.db.commit()
 
     def db_insert(self, *args, **kwargs):
         """

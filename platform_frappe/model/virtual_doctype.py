@@ -3,6 +3,7 @@
 
 import frappe
 from frappe.model.document import Document
+from frappe.model.naming import getseries
 
 
 class VirtualDoctype(Document):
@@ -29,6 +30,8 @@ class VirtualDoctype(Document):
 
     def __init__(self, *args, **kwargs):
         self._table_fieldnames = self.get_table_fieldnames()
+        self.args = args
+        self.kwargs = kwargs
         super().__init__(*args, **kwargs)
 
     def get_new_parent_doc(self):
@@ -80,6 +83,13 @@ class VirtualDoctype(Document):
         return data
 
     def prepare_data_from_db(self):
+        data = frappe.db.get_value(self.parent_doctype, self.name, ["name"], as_dict=1)
+
+        if not data:
+            # When reload new form operation, it must ignore query to database.
+            setattr(self, "__islocal", True)
+            return None
+
         data = frappe.get_doc(self.parent_doctype, self.name).as_dict()
         table_fieldnames = self.get_table_fieldnames()
         form_table_fieldnames = self.get_virtual_table_fieldnames()

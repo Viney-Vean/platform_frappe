@@ -102,20 +102,16 @@ class VirtualDoctype(Document):
         self.update(data)
 
     def prepare_data_for_db_insert(self, *args, **kwargs):
-        data = self.get_valid_dict(convert_dates_to_str=True)
-        parent_doctype = self.get_new_parent_doc()
-
-        for field, value in data.items():
-            if hasattr(parent_doctype, field):
-                setattr(parent_doctype, field, value)
-
         for children_field in self.get_virtual_table_fieldnames():
             children_data = getattr(self, children_field)
 
             for data_item in children_data:
                 setattr(data_item, "parenttype", self.parent_doctype)
 
-        parent_doctype.insert(set_name=parent_doctype.name, ignore_mandatory=True)
+        pre_doct = self.doctype
+        self.doctype = self.parent_doctype
+        super().db_insert(*args, **kwargs)
+        self.doctype = pre_doct
 
     def prepare_data_for_update(self, *args, **kwargs):
         data = self.get_valid_dict(convert_dates_to_str=True)

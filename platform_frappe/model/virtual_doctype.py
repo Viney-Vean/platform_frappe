@@ -114,13 +114,7 @@ class VirtualDoctype(Document):
         self.doctype = pre_doct
 
     def prepare_data_for_update(self, *args, **kwargs):
-        data = self.get_valid_dict(convert_dates_to_str=True)
-        parent_doctype = self.get_new_parent_doc()
         children_field_dict = self.get_table_field_dict()
-
-        for field, value in data.items():
-            if hasattr(parent_doctype, field):
-                setattr(parent_doctype, field, value)
 
         for children_field in self.get_virtual_table_fieldnames():
             children_data = getattr(self, children_field)
@@ -141,7 +135,10 @@ class VirtualDoctype(Document):
             for del_item in del_children:
                 frappe.delete_doc(del_child_doctype, del_item.get("name"))
 
-        frappe.db.set_value(self.parent_doctype, self.name, data)
+        pre_doct = self.doctype
+        self.doctype = self.parent_doctype
+        super().db_update()
+        self.doctype = pre_doct
 
     def db_insert(self, *args, **kwargs):
         """

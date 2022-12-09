@@ -21,16 +21,16 @@ Currently we test `platform_frappe` on Python 3.10 and frappe v14 on these opera
 
 #### Usage
 
-- Go to your virtual doctype then start import **VirtualDoctype**. </br>
-- Your class must inherit from class `VirtualDoctype` and assign variable `parent_doctype` with your original
-  doctype.   </br>
+- Go to your virtual doctype then start import class `VirtualDoctype`. </br>
+- Your class must inherit from class `VirtualDoctype` 
+- You must assign variable `parent_doctype` with your original doctype.   </br>
   > from platform_frappe.model.virtual_doctype import VirtualDoctype </br>
   >
   > class ProductVirtual(VirtualDoctype):  </br>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
   > parent_doctype = "Product"
 
-- Go to your javascript file
+- Go to your javascript file and add the below script
   > frappe.ui.form.on('Product virtual', {  </br>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
   > after_save: function (frm) {  </br>
@@ -42,8 +42,8 @@ Currently we test `platform_frappe` on Python 3.10 and frappe v14 on these opera
   > }  </br>
   > });
 
-#### Usage
-You can override method in your virtual doctype.  </br>
+#### Note:
+_You can override methods in your virtual doctype._  </br>
 ###### Example:
   > from platform_frappe.model.virtual_doctype import VirtualDoctype </br>
   >

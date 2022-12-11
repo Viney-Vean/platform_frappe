@@ -3,29 +3,9 @@
 
 import frappe
 from frappe.model.document import Document
-from frappe.model.naming import getseries
 
 
 class VirtualDoctype(Document):
-    """
-        Usage:
-            - You must set value to variable parent_doctype.
-        Example:
-            1. Python File:
-                from platform_frappe.model.virtual_doctype import VirtualDoctype
-
-                class CustomerRelative(VirtualDoctype):
-                    parent_doctype = "CBP Customer"
-
-            2. Javascript File:
-                frappe.ui.form.on('Customer Relative', {
-                    after_save: function (frm) {
-                        frm.reload_doc();
-                        frm.refresh()
-                    }
-                });
-    """
-
     parent_doctype = ""
 
     def __init__(self, *args, **kwargs):
@@ -38,10 +18,6 @@ class VirtualDoctype(Document):
         return frappe.new_doc(self.parent_doctype)
 
     def get_table_fieldnames(self):
-        """
-            Don't call to protected member directly.
-            Ex: self.get_new_parent_doc()._table_fieldnames
-        """
         data = set()
 
         for d in self.get_new_parent_doc().meta.get_table_fields():
@@ -50,10 +26,6 @@ class VirtualDoctype(Document):
         return data
 
     def get_table_field_objects(self):
-        """
-            Don't call to protected member directly.
-            Ex: self.get_new_parent_doc().meta._table_fields
-        """
         data = []
 
         for d in self.meta.get_table_fields():
@@ -63,10 +35,6 @@ class VirtualDoctype(Document):
         return data
 
     def get_virtual_table_fieldnames(self):
-        """
-            Don't call to protected member directly.
-            Ex: self.get_new_parent_doc().meta._table_fields
-        """
         data = set()
 
         for d in self.meta.get_table_fields():
@@ -82,11 +50,17 @@ class VirtualDoctype(Document):
 
         return data
 
+    def exec_virtual_method(self, fn_name, *args, **kwargs):
+        pre_doct = self.doctype
+        self.doctype = self.parent_doctype
+        getattr(super(), fn_name)(*args, **kwargs)
+        self.doctype = pre_doct
+
     def prepare_data_from_db(self):
         data = frappe.db.get_value(self.parent_doctype, self.name, ["name"], as_dict=1)
 
         if not data:
-            # When reload new form operation, it must ignore query to database.
+            # When reload new form operation, it must ignore another query or another calling function.
             setattr(self, "__islocal", True)
             return None
 
@@ -108,10 +82,7 @@ class VirtualDoctype(Document):
             for data_item in children_data:
                 setattr(data_item, "parenttype", self.parent_doctype)
 
-        pre_doct = self.doctype
-        self.doctype = self.parent_doctype
-        super().db_insert(*args, **kwargs)
-        self.doctype = pre_doct
+        self.exec_virtual_method("db_insert", *args, **kwargs)
 
     def prepare_data_for_update(self, *args, **kwargs):
         children_field_dict = self.get_table_field_dict()
@@ -124,21 +95,18 @@ class VirtualDoctype(Document):
                 setattr(data_item, "parenttype", self.parent_doctype)
                 keep_ids.append(data_item.name)
 
-            del_child_doctype = children_field_dict.get(children_field, {}).get("doctype")
-            del_children = frappe.get_list(del_child_doctype,
-                                           fields=["name"],
-                                           filters={"parent": self.name,
-                                                    "parentfield": children_field,
-                                                    "parenttype": self.parent_doctype,
-                                                    "name": ("NOT IN", keep_ids)})
+            child_doctype = children_field_dict.get(children_field, {}).get("doctype")
+            children = frappe.get_list(child_doctype,
+                                       fields=["name"],
+                                       filters={"parent": self.name,
+                                                "parentfield": children_field,
+                                                "parenttype": self.parent_doctype,
+                                                "name": ("NOT IN", keep_ids)})
 
-            for del_item in del_children:
-                frappe.delete_doc(del_child_doctype, del_item.get("name"))
+            for del_item in children:
+                frappe.delete_doc(child_doctype, del_item.get("name"))
 
-        pre_doct = self.doctype
-        self.doctype = self.parent_doctype
-        super().db_update()
-        self.doctype = pre_doct
+        self.exec_virtual_method("db_update")
 
     def db_insert(self, *args, **kwargs):
         """
@@ -167,10 +135,10 @@ class VirtualDoctype(Document):
         data = frappe.db.get_list(cls.parent_doctype, fields="*")
         return data
 
-    @staticmethod
-    def get_count(args):
+    @classmethod
+    def get_count(cls, args):
         pass
 
-    @staticmethod
-    def get_stats(args):
+    @classmethod
+    def get_stats(cls, args):
         pass

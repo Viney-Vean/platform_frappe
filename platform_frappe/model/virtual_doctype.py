@@ -26,7 +26,7 @@ class VirtualDoctype(Document):
         return data
 
     def get_table_field_objects(self):
-        data = []
+        data = list()
 
         for d in self.meta.get_table_fields():
             setattr(d, "parent", self.parent_doctype)
@@ -43,7 +43,7 @@ class VirtualDoctype(Document):
         return data
 
     def get_table_field_dict(self):
-        data = {}
+        data = dict()
 
         for field in self.get_table_field_objects():
             data.update({field.fieldname: {"doctype": field.options, "parent": field.parent, "label": field.label}})
@@ -51,10 +51,10 @@ class VirtualDoctype(Document):
         return data
 
     def exec_virtual_method(self, fn_name, *args, **kwargs):
-        pre_doct = self.doctype
+        old_doctype = self.doctype
         self.doctype = self.parent_doctype
         getattr(super(), fn_name)(*args, **kwargs)
-        self.doctype = pre_doct
+        self.doctype = old_doctype
 
     def prepare_data_from_db(self):
         data = frappe.db.get_value(self.parent_doctype, self.name, ["name"], as_dict=1)
@@ -84,7 +84,7 @@ class VirtualDoctype(Document):
 
         self.exec_virtual_method("db_insert", *args, **kwargs)
 
-    def prepare_data_for_update(self, *args, **kwargs):
+    def prepare_data_for_db_update(self, *args, **kwargs):
         children_field_dict = self.get_table_field_dict()
 
         for children_field in self.get_virtual_table_fieldnames():
@@ -109,22 +109,13 @@ class VirtualDoctype(Document):
         self.exec_virtual_method("db_update")
 
     def db_insert(self, *args, **kwargs):
-        """
-            Don't use self.reload() here, the children will not save.
-        """
         self.prepare_data_for_db_insert()
 
     def load_from_db(self):
-        """
-            Don't use self.reload() here, the children will not save.
-        """
         self.prepare_data_from_db()
 
     def db_update(self, *args, **kwargs):
-        """
-            Don't use self.reload() here, the children will not save.
-        """
-        self.prepare_data_for_update()
+        self.prepare_data_for_db_update()
 
     def delete(self, ignore_permissions=False):
         self.doctype = self.parent_doctype
@@ -132,8 +123,7 @@ class VirtualDoctype(Document):
 
     @classmethod
     def get_list(cls, args):
-        data = frappe.db.get_list(cls.parent_doctype, fields="*")
-        return data
+        return frappe.db.get_list(cls.parent_doctype, fields="*")
 
     @classmethod
     def get_count(cls, args):
